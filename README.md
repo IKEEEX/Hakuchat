@@ -93,3 +93,19 @@ python chat_core.py                      # keskustelu terminaalissa
 | `search.py` | Haku curlilla: DuckDuckGo → Wikipedia fi → Wikipedia en |
 | `index.html` | Käyttöliittymä ilman kehyksiä |
 | `weather.py` | Alkuperäinen työkalukutsuesimerkki |
+
+## Tool use -silmukan selitys
+- Rivit 139–141: Luodaan asiakas ja valitaan malli. Funktiolle voi myös antaa ne parametreina, mikä helpottaa testaamista. `searches` kerää tehdyt haut käyttöliittymää varten.
+- Silmukka rivi 143: Silmukka kiertää enintään 6 kertaa: viisi kierrosta, joilla saa hakea, ja yksi viimeinen, jolla on pakko vastata tekstinä.
+- Rivit 144–147: Malli ei muista mitään. Siksi jokaisella kierroksella lähetetään koko keskustelu: system-prompt ja kaikki aikaisemmat viestit. Viimeisellä kierroksella loppuun lisätään käsky vastata.
+- Rivit 148–155: `tools` kertoo mallille, että `web_search` on käytettävissä. `tool_choice` määrää, miten sitä saa käyttää:
+
+"auto": malli päättää itse, hakeeko vai vastaako.
+"none": työkalua ei saa käyttää, malli vastaa tekstinä.
+
+Malli palauttaa joko tekstiä `msg.content` tai pyynnön työkalukutsusta `msg.tool_calls`.
+
+- Rivit 157-163: Jos malli ei pyytänyt työkalua tai kierrokset loppuivat, vastaus siivotaan, tallennetaan historiaan ja palautetaan.
+Rivit 165-169: Mallin pyyntö tallennetaan historiaan. Jokainen pyydetty kutsu suoritetaan. Malli voi pyytää useaa hakua kerralla.
+Tulos lisätään historiaan `tool`-roolilla. `tool_call_id` kertoo, mihin pyyntöön tulos vastaa. Sen jälkeen silmukka palaa alkuun, ja malli saa seuraavalla kierroksella nähdä hakutulokset.
+Rivi 171: Tänne ei koskaan pitäisi päästä. Rivin tarkoituksena on olla varmistuksena jos jokin rikkoutuu.
