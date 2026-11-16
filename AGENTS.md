@@ -28,7 +28,8 @@ where an LLM can call a `web_search` tool.
 - `index.html`: no frameworks — message list, text field, Lähetä button, Enter sends,
   shows which search/source was used, links are clickable.
 - `weather.py`: original tool-calling demo (prints requested tool call only).
-- No tests, lint config or CI. `README.md` (install + startup) is still to be written.
+- `README.md`: install and startup instructions (Finnish).
+- No tests, lint config or CI.
 
 ## Env vars
 
