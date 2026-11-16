@@ -7,6 +7,9 @@ from html.parser import HTMLParser
 from urllib.parse import parse_qs, quote, quote_plus, urlparse
 
 CURL_TIMEOUT = 10  # seconds
+MAX_RESULTS_LIMIT = 10  # hard cap regardless of what the model asks for
+MAX_TITLE_LEN = 200  # characters
+MAX_URL_LEN = 500  # characters
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) llm-websearch-poc/0.1"
 
 
@@ -126,12 +129,24 @@ SOURCES = [
 ]
 
 
+def _sanitize(results: list[dict], max_results: int) -> list[dict]:
+    """Keep only title + url, cap count and length (untrusted web data)."""
+    clean = []
+    for r in results[:max_results]:
+        title = str(r.get("title", ""))[:MAX_TITLE_LEN]
+        url = str(r.get("url", ""))
+        if len(url) > MAX_URL_LEN:
+            continue  # a truncated URL would be broken; drop it
+        clean.append({"title": title, "url": url})
+    return clean
+
+
 def web_search_with_source(query: str, max_results: int = 5) -> tuple[str | None, list[dict]]:
     """Try each source in order; return (source_name, results) from the first non-empty one."""
-    max_results = max(1, min(int(max_results), 20))
+    max_results = max(1, min(int(max_results), MAX_RESULTS_LIMIT))
     for name, fn in SOURCES:
         try:
-            results = fn(query, max_results)
+            results = _sanitize(fn(query, max_results), max_results)
         except Exception as exc:  # network/parse errors -> try next source
             print(f"[search] {name} failed: {exc}", file=sys.stderr)
             continue
