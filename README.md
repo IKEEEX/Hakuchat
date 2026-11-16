@@ -14,7 +14,7 @@ englanninkielisestä Wikipediasta.
 ## Asennus
 
 ```bash
-git clone <repon-osoite> hakuchat
+git clone https://github.com/IKEEEX/Hakuchat hakuchat
 cd hakuchat
 
 python3 -m venv .venv
