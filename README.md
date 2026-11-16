@@ -96,16 +96,41 @@ python chat_core.py                      # keskustelu terminaalissa
 
 ## Tool use -silmukan selitys
 - Rivit 139–141: Luodaan asiakas ja valitaan malli. Funktiolle voi myös antaa ne parametreina, mikä helpottaa testaamista. `searches` kerää tehdyt haut käyttöliittymää varten.
-- Silmukka rivi 143: Silmukka kiertää enintään 6 kertaa: viisi kierrosta, joilla saa hakea, ja yksi viimeinen, jolla on pakko vastata tekstinä.
+- Silmukka rivi 143: Kiertää enintään 6 kertaa: viisi kierrosta, joilla saa hakea, ja yksi viimeinen, jolla on pakko vastata tekstinä.
 - Rivit 144–147: Malli ei muista mitään. Siksi jokaisella kierroksella lähetetään koko keskustelu: system-prompt ja kaikki aikaisemmat viestit. Viimeisellä kierroksella loppuun lisätään käsky vastata.
 - Rivit 148–155: `tools` kertoo mallille, että `web_search` on käytettävissä. `tool_choice` määrää, miten sitä saa käyttää:
 
-"auto": malli päättää itse, hakeeko vai vastaako.
-"none": työkalua ei saa käyttää, malli vastaa tekstinä.
+`"auto": malli päättää itse, hakeeko vai vastaako.`
+`"none": työkalua ei saa käyttää, malli vastaa tekstinä.`
 
 Malli palauttaa joko tekstiä `msg.content` tai pyynnön työkalukutsusta `msg.tool_calls`.
 
 - Rivit 157-163: Jos malli ei pyytänyt työkalua tai kierrokset loppuivat, vastaus siivotaan, tallennetaan historiaan ja palautetaan.
-Rivit 165-169: Mallin pyyntö tallennetaan historiaan. Jokainen pyydetty kutsu suoritetaan. Malli voi pyytää useaa hakua kerralla.
+- Rivit 165-169: Mallin pyyntö tallennetaan historiaan. Jokainen pyydetty kutsu suoritetaan. Malli voi pyytää useaa hakua kerralla.
 Tulos lisätään historiaan `tool`-roolilla. `tool_call_id` kertoo, mihin pyyntöön tulos vastaa. Sen jälkeen silmukka palaa alkuun, ja malli saa seuraavalla kierroksella nähdä hakutulokset.
-Rivi 171: Tänne ei koskaan pitäisi päästä. Rivin tarkoituksena on olla varmistuksena jos jokin rikkoutuu.
+- Rivi 171: Tänne ei koskaan pitäisi päästä. Rivin tarkoituksena on olla varmistuksena jos jokin rikkoutuu.
+
+## Reflektio
+
+### Missä agentti teki virheen tai huonon ratkaisun?
+
+Agentti ei luonut projektiin `.gitignore`-tiedostoa, joten `__pycache__`-tiedostot päätyivät commiteihin. Lisäksi system-promptista puuttui ohje, että hakutulokset ovat dataa eivätkä ohjeita, eikä hakutulosten pituutta rajattu. Huomasin puutteet, kun pyysin agenttia vertaamaan koodia kurssin turvallisuusvaatimuksiin.
+
+Toinen virhe näkyi vasta testeissä. Agentti oletti, että `tool_choice="none"` estää mallia tekemästä enempää hakuja viimeisellä kierroksella. Kun pyysin kymmentä hakua, silmukka pysähtyi oikein viiteen, mutta Nemotron kirjoitti kuudennen työkalukutsun tekstinä, ja `<tool_call>`-merkintä näkyi chatissa. Korjaukseksi viimeiselle kierrokselle lisättiin oma ohje ja merkintöjen siivous.
+
+### Minkä osan koodista ymmärrän heikoimmin?
+
+`search.py`:n parse-funktiot ovat monimutkaisia ja jopa tekoälyn selityksellä ne tuntuvat hankalilta. Myös DuckDuckGo vaatii funktion `_unwrap_ddg_url`, koska se "käärii" linkit, se on hieman vaikeaa ymmärtää. Myös pieniä osia muualta koodista. Projekti oli iso ja uutta tietoa tuli roppakaupalla.
+
+### Miten agentin käyttö vaikutti oppimiseeni?
+
+Sain toimivan sovelluksen nopeammin kuin itse
+kirjoittamalla, mutta koodi ei ollut "omaa". Ymmärsin koodin vasta kun pyysin selitykset niistä ja en kokonaan silloinkaan. Opin enemmän koodin arkkitehtuurista ja yksityiskohdat jäivät enemmän taka-alalle. Totta puhuen en varmaan olisi osannut kirjoittaa tätä koodia itse ja agentti oli suuri apu siinä. Pyrin aina selvittämään miten tekoälyn tekemät koodit toimivat, jotta voisin oppia. 
+
+### Milloin malli päätti hakea ja milloin ei?
+
+Malli haki, kun kysymys koski ajankohtaista tietoa, esimerkiksi Python 3.14:n uutuuksia. Laskutehtävään `17 × 23` se vastasi suoraan ilman hakua, mikä oli järkevää. Jatkokysymykseen "Etsi vielä suomenkielisiä lähteitä" malli teki haun suomeksi, mutta ei löytänyt suomalaisia tuloksia, joten se antoi samat linkit.
+
+Kaikki päätökset ei ollu hyviä. Python 3.14 -kysymyksessä malli ei
+hakutuloksista huolimatta tiennyt, että versio on jo julkaistu, joten se luotti enemmän omaan vanhentuneeseen tietoon kuin hakuun. Komentoinjektiotestissä se kieltäytyi hakemasta kokonaan, vaikka haku olisi ollut vaaraton. Kieltäytyminen oli ylivarovaista, mutta ihan ok.
+Prompt injection -yrityksen malli tunnisti ja torjui oikein.
