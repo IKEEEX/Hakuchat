@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -48,6 +49,22 @@ SYSTEM_PROMPT = (
 )
 
 LLM_TIMEOUT = 60  # seconds per model API call
+
+# Sent (not stored in history) on the last round, when tools are disabled.
+FINAL_ROUND_PROMPT = (
+    "Hakukierrosten enimmäismäärä on täynnä, eikä hakuja voi enää tehdä. "
+    "Älä kirjoita työkalukutsuja. Vastaa nyt tavallisena tekstinä jo saatujen "
+    "hakutulosten perusteella ja kerro, mitkä pyydetyt haut jäivät tekemättä."
+)
+
+# Some models write tool calls as text when tools are disabled, e.g.
+# <tool_call><function=web_search>...</function></tool_call>
+_TEXT_TOOL_CALL_RE = re.compile(r"<tool_call>.*?(?:</tool_call>|\Z)", re.DOTALL)
+
+
+def clean_reply(text: str) -> str:
+    """Remove tool-call markup that a model wrote as plain text."""
+    return _TEXT_TOOL_CALL_RE.sub("", text).strip()
 
 
 def make_client() -> OpenAI:
@@ -125,9 +142,12 @@ def chat(messages: list[dict], client: OpenAI | None = None, model: str | None =
 
     for round_no in range(max_rounds + 1):
         last_round = round_no == max_rounds
+        request_messages = [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
+        if last_round:
+            request_messages.append({"role": "user", "content": FINAL_ROUND_PROMPT})
         response = client.chat.completions.create(
             model=model,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, *messages],
+            messages=request_messages,
             tools=[WEB_SEARCH_TOOL],
             # After max_rounds tool rounds, force a text answer.
             tool_choice="none" if last_round else "auto",
@@ -135,7 +155,10 @@ def chat(messages: list[dict], client: OpenAI | None = None, model: str | None =
         msg = response.choices[0].message
 
         if not msg.tool_calls or last_round:
-            reply = msg.content or ""
+            reply = clean_reply(msg.content or "")
+            if not reply and last_round:
+                reply = (f"Hakukierrosten raja ({max_rounds}) tuli täyteen ennen "
+                         "kuin malli ehti vastata. Kysy loput erikseen.")
             messages.append({"role": "assistant", "content": reply})
             return reply, searches
 

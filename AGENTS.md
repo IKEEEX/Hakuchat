@@ -29,6 +29,7 @@ where an LLM can call a `web_search` tool.
   shows which search/source was used, links are clickable.
 - `weather.py`: original tool-calling demo (prints requested tool call only).
 - `README.md`: install and startup instructions (Finnish).
+- `PROMPTS.md`: manual test prompts with expected results (Finnish).
 - No tests, lint config or CI.
 
 ## Env vars
